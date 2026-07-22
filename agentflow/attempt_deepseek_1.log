@@ -1,0 +1,10 @@
+=== stage 1: compile TLV ===
+ok (build/scorer.v)
+=== stage 2: simulate ===
+3410 stimulus lines
+IVERILOG FAILED:
+build/scorer.v:271: error: can not select part of scalar: SCORER_key_idx_a0
+build/scorer.v:270: error: Unable to elaborate r-value: (reset)?('sd0):(((SCORER_key_done_a0)&&((SCORER_final_acc_a0)>($signed(SCORER_best_a0))))?(SCORER_key_idx_a0['sd5:'sd0]):(SCORER_best_idx_a0))
+build/scorer.v:279: error: can not select part of scalar: SCORER_best_idx_a0
+build/scorer.v:279: error: Unable to elaborate r-value: ((SCORER_rp_a0)==('sd0))?(SCORER_best_idx_a0['sd5:'sd0]):(((SCORER_rp_a0)==('sd1))?(SCORER_best_a0['sd15:'sd8]):(SCORER_best_a0['sd7:'sd0]))
+4 error(s) during elaboration.

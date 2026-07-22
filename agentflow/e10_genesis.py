@@ -41,6 +41,9 @@ Rules learned the hard way:
 - Indentation is significant: |pipe at 3 spaces, @stage at 6, statements at 9.
 - $name[hi:lo] = expr; assigns a pipesignal (declared by assignment, never declared
   separately). Every $signal read must be assigned exactly once.
+- The LHS bit range IS the declaration: omitting it ($x = ...) creates a 1-BIT signal,
+  and any later $x[2:0] select fails elaboration. Every multi-bit signal must carry
+  its range at the assignment, including in <<1$state[hi:lo] = ... form.
 - <<1$state = expr; assigns the NEXT value of flop $state; reading $state gives the
   current (flopped) value. Use ternaries for enables: <<1$x = $we ? $new : $x;
   RESET EVERY STATE SIGNAL: <<1$x = *reset ? '0 : (...). SandPiper flops need this.
@@ -93,11 +96,18 @@ def call(provider, user):
             data=json.dumps({"model": MODEL_NAME["deepseek"],
                 "messages": [{"role": "system", "content": SYSTEM},
                              {"role": "user", "content": user}],
-                "max_tokens": 8000, "temperature": 0.2}).encode(),
+                "max_tokens": 16000, "temperature": 0.2}).encode(),
             headers={"Content-Type": "application/json", "Authorization": "Bearer " + key})
         d = json.load(urllib.request.urlopen(req, timeout=300))
         u = d.get("usage", {})
-        return d["choices"][0]["message"]["content"], u.get("prompt_tokens", 0), u.get("completion_tokens", 0)
+        msg = d["choices"][0]["message"]
+        content = msg.get("content") or ""
+        if not content:
+            fr = d["choices"][0].get("finish_reason")
+            rc = msg.get("reasoning_content") or ""
+            print(f"    (deepseek content rong, finish_reason={fr}, reasoning={len(rc)} chars)", flush=True)
+            content = rc  # may contain the file at the end; extractor will judge
+        return content, u.get("prompt_tokens", 0), u.get("completion_tokens", 0)
     key = open(os.path.expanduser("~/.secrets/steve_anthropic_key")).read().strip()
     req = urllib.request.Request("https://api.anthropic.com/v1/messages",
         data=json.dumps({"model": MODEL_NAME["claude"], "max_tokens": 8000,
@@ -150,7 +160,18 @@ def enrich(out):
 
 def extract(text):
     m = re.search(r"===FILE: scorer\.tlv===\n(.*?)\n?===END===", text, re.S)
-    return m.group(1) if m else None
+    if m:
+        return m.group(1)
+    # Lenient fallbacks: fenced code block containing a TLV header, or a bare reply
+    # that IS the file (starts with the TLV version line).
+    m = re.search(r"```[a-zA-Z]*\n(\\m[45]_?TLV_version.*?)```", text, re.S)
+    if m:
+        return m.group(1)
+    t = text.strip()
+    if t.startswith("\\m5_TLV_version") or t.startswith("\\m4_TLV_version") \
+            or t.startswith("\\TLV_version"):
+        return t
+    return None
 
 
 def main():
@@ -176,8 +197,11 @@ def main():
                 break
             body = extract(resp)
             if body is None:
-                print(f"  [{provider} #{a}] khong parse duoc, retry")
-                feedback = "Your reply did not follow the ===FILE:===/===END=== format."
+                print(f"  [{provider} #{a}] khong parse duoc (da log), retry")
+                with open(os.path.join(ROOT, f"agentflow/unparsed_{provider}_{a}.txt"), "w") as f:
+                    f.write(resp)
+                feedback = ("Your reply did not follow the required format. Reply with "
+                            "EXACTLY:\n===FILE: scorer.tlv===\n<file contents>\n===END===")
                 attempts.append((provider, a, "unparsed", c))
                 continue
             with open(os.path.join(ROOT, "hw/scorer.tlv"), "w") as f:

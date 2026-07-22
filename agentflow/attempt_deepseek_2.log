@@ -1,0 +1,7 @@
+=== stage 1: compile TLV ===
+ok (build/scorer.v)
+=== stage 2: simulate ===
+3410 stimulus lines
+IVERILOG FAILED:
+build/scorer.v:247: syntax error
+build/scorer.v:247: error: Syntax error in continuous assignment

@@ -15,7 +15,7 @@ mkdir -p build
 echo "=== stage 1: compile TLV ==="
 if [ -f hw/scorer.tlv ]; then
   rm -f build/scorer.v
-  sandpiper-saas -i hw/scorer.tlv -o scorer.v --outdir build --noline --iArgs \
+  sandpiper-saas -i hw/scorer.tlv -o scorer.v --outdir build --inlineGen --noline --iArgs \
     > build/sandpiper.log 2>&1
   if [ ! -f build/scorer.v ]; then
     echo "SANDPIPER FAILED:"

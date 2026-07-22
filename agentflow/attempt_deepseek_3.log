@@ -1,0 +1,9 @@
+=== stage 1: compile TLV ===
+ok (build/scorer.v)
+=== stage 2: simulate ===
+3410 stimulus lines
+ok
+=== stage 3: compare vs golden ===
+ok (3410 cycles match)
+=== stage 4: synth sanity ===
+ALL CHECKS PASSED

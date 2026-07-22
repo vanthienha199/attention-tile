@@ -1,0 +1,14 @@
+=== stage 1: compile TLV ===
+ok (build/scorer.v)
+=== stage 2+3: simulate and compare (both vector sets) ===
+MISMATCH in gen_vectors: 556 of 3410 cycles differ. First 10:
+894: gold=0b dut=01
+895: gold=1d dut=02
+896: gold=e9 dut=b7
+897: gold=0b dut=01
+898: gold=0b dut=01
+899: gold=0b dut=01
+900: gold=0b dut=01
+901: gold=0b dut=01
+902: gold=0b dut=01
+903: gold=0b dut=01

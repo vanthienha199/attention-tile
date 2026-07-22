@@ -1,7 +1,14 @@
 === stage 1: compile TLV ===
 ok (build/scorer.v)
-=== stage 2: simulate ===
-3410 stimulus lines
-IVERILOG FAILED:
-build/scorer.v:247: syntax error
-build/scorer.v:247: error: Syntax error in continuous assignment
+=== stage 2+3: simulate and compare (both vector sets) ===
+MISMATCH in gen_vectors: 3409 of 3410 cycles differ. First 10:
+1: gold=00 dut=zz
+2: gold=00 dut=zz
+3: gold=00 dut=zz
+4: gold=00 dut=zz
+5: gold=00 dut=zz
+6: gold=00 dut=zz
+7: gold=00 dut=zz
+8: gold=00 dut=zz
+9: gold=00 dut=zz
+10: gold=00 dut=zz

@@ -1,0 +1,6 @@
+=== stage 1: compile TLV ===
+ok (build/scorer.v)
+=== stage 2+3: simulate and compare (both vector sets) ===
+IVERILOG FAILED:
+build/scorer.v:161: error: Unable to bind wire/reg/memory `SCORER_qsel_n1['sd7:'sd0]' in `tb.dut'
+Segmentation fault

@@ -1,0 +1,23 @@
+[gold]
+read_verilog -sv ../model/ref_scorer.v
+prep -top tt_um_hale_attn_scorer -flatten
+
+[gate]
+read_verilog -sv ../build/scorer.v
+prep -top tt_um_hale_attn_scorer -flatten
+
+[script]
+proc -ifx
+clean
+setundef -anyseq
+
+[match tt_um_hale_attn_scorer]
+
+[collect *]
+
+[partition *]
+
+[strategy sby_seq]
+use sby
+depth 24
+engine smtbmc

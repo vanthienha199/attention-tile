@@ -66,7 +66,7 @@ def read(p):
         return f.read()
 
 
-def build_user(feedback=None):
+def build_user(feedback=None, last_body=None):
     u = ("# Task\n\n"
          "Write a complete TL-Verilog implementation of the attention scorer tile in a "
          "single file `scorer.tlv`. It must implement the spec below EXACTLY, "
@@ -79,8 +79,11 @@ def build_user(feedback=None):
          "\nReply with EXACTLY this format (no markdown fences, no commentary):\n"
          "===FILE: scorer.tlv===\n<complete file contents>\n===END===\n")
     if feedback:
-        u += ("\n# Previous attempt FAILED the checks. Output:\n\n" + feedback[-4000:] +
-              "\n\nFix the problem and reply with the complete corrected file.")
+        u += "\n# Previous attempt FAILED the checks. Output:\n\n" + feedback[-4000:]
+        if last_body:
+            u += ("\n\n# Your previous attempt (the error line numbers refer to the "
+                  "Verilog GENERATED from this file):\n\n" + last_body)
+        u += "\n\nFix the problem and reply with the complete corrected file."
     return u
 
 
@@ -141,6 +144,18 @@ def run_checks():
 
 
 def enrich(out):
+    # On a generated-Verilog error, show the generated code around the error line
+    # (the model only sees its TLV, so line numbers alone are undiagnosable).
+    m = re.search(r"build/scorer\.v:(\d+): (?:error|syntax)", out)
+    p = os.path.join(ROOT, "build/scorer.v")
+    if m and os.path.exists(p):
+        ln = int(m.group(1))
+        lines = open(p).read().splitlines()
+        lo, hi = max(0, ln - 6), min(len(lines), ln + 4)
+        excerpt = "\n".join(f"{i+1}: {lines[i]}" for i in range(lo, hi))
+        out += ("\n\n# The Verilog SandPiper GENERATED from your TLV, around the error "
+                "line:\n" + excerpt +
+                "\nFind which TLV construct produced this and fix it in the TLV.")
     # On a mismatch, show the stimulus context around the first differing cycle.
     m = re.search(r"^(\d+): gold=", out, re.M)
     if not m:
@@ -184,12 +199,20 @@ def main():
                  os.environ.get("MM_PROVIDERS", "deepseek:5,claude:6").split(",")]
     cost = {"deepseek": 0.0, "claude": 0.0}
     feedback = None
+    last_body = None
+    seed = os.environ.get("MM_SEED_FILE")
+    if seed and os.path.exists(seed):
+        last_body = open(seed).read()
+        slog = os.environ.get("MM_SEED_LOG")
+        feedback = (open(slog).read()[-4000:] if slog and os.path.exists(slog) else
+                    "The previous attempt failed the checks.")
+        print(f"  (seeded tu {seed})")
     attempts = []
     t0 = time.time()
     for provider, tries in [(p, int(n)) for p, n in providers]:
         for a in range(1, tries + 1):
             print(f"  [{provider} #{a}] goi API ...", flush=True)
-            resp, i, o = call_retry(provider, build_user(feedback))
+            resp, i, o = call_retry(provider, build_user(feedback, last_body))
             c = (i*0.14 + o*0.28)/1e6 if provider == "deepseek" else (i*3.0 + o*15.0)/1e6
             cost[provider] += c
             if cost[provider] > MAX_COST[provider]:
@@ -221,6 +244,7 @@ def main():
                 print(f"thoi gian: {(time.time()-t0)/60:.1f} phut")
                 return 0
             feedback = enrich(out)
+            last_body = body
     print("\n===== HET BUDGET, CHUA PASS =====")
     for p, a, r, c in attempts:
         print(f"  {p} #{a}: {r} (${c:.4f})")

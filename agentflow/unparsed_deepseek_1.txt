@@ -1,0 +1,90 @@
+===FILE: scorer.tlv===
+\m5_TLV_version 1d: tl-x.org
+\m5
+   use(m5-1.0)
+\SV
+   module tt_um_hale_attn_scorer (
+     input  wire [7:0] ui_in,  output wire [7:0] uo_out,
+     input  wire [7:0] uio_in, output wire [7:0] uio_out, output wire [7:0] uio_oe,
+     input  wire ena, input wire clk, input wire rst_n);
+   assign uio_out = 8'b0;
+   assign uio_oe  = 8'b0;
+   wire reset = ~rst_n;
+\TLV
+   |scorer
+      @0
+         // Inputs
+         $cmd[1:0] = *uio_in[1:0];
+         $data[7:0] = *ui_in;
+         
+         // Query buffer flops (current values)
+         // $q0..$q7 declared by next assignments below
+         
+         // Select query value based on dimension
+         $q_sel[7:0] = ($dim == 0) ? $q0 : ($dim == 1) ? $q1 : ($dim == 2) ? $q2 : ($dim == 3) ? $q3 :
+                        ($dim == 4) ? $q4 : ($dim == 5) ? $q5 : ($dim == 6) ? $q6 : $q7;
+         
+         // Product and saturated accumulator
+         $prod[15:0] = $signed($q_sel) * $signed($data);
+         $sum[16:0] = $signed($acc) + $signed($prod);
+         $new_acc_sat[15:0] = ($sum > 17'sd32767) ? 16'sd32767 : ($sum < -17'sd32768) ? -16'sd32768 : $sum[15:0];
+         
+         // Key active condition (key_idx <= 63)
+         $key_active = ($key_idx < 7'd64);
+         
+         // Determine if we are in a STREAM_K cycle that should process
+         $process_key = ($cmd == 2'b10) && ($qfill == 4'd8) && $key_active;
+         $key_complete = $process_key && ($dim == 3'd7);
+         
+         // Write index for LOAD_Q
+         $q_write_idx[2:0] = ($qfill >= 4'd8) ? 3'd0 : $qfill[2:0];
+         
+         // LOAD_Q signals
+         $load_q_write = ($cmd == 2'b01);
+         $load_q_next_fill[3:0] = $q_write_idx + 1;
+         $new_query = $load_q_write && ($load_q_next_fill == 4'd8);
+         
+         // qfill reset from IDLE or STREAM_K when qfill < 8
+         $qfill_reset = (($cmd == 2'b00) || ($cmd == 2'b10)) && ($qfill < 4'd8);
+         
+         // Next qfill
+         $qfill_next[3:0] = $load_q_write ? $load_q_next_fill : ($qfill_reset ? 4'd0 : $qfill);
+         
+         // dim reset conditions: any command that is not STREAM_K, or STREAM_K with incomplete query
+         $dim_reset = ($cmd != 2'b10) || (($cmd == 2'b10) && ($qfill < 4'd8));
+         // dim next
+         $dim_next[2:0] = *reset ? 3'd0 : ($dim_reset ? 3'd0 : ($process_key ? ($key_complete ? 3'd0 : ($dim + 1)) : $dim));
+         
+         // acc reset conditions same as dim_reset
+         $acc_reset = $dim_reset;
+         // acc next
+         $acc_next[15:0] = *reset ? 16'sd0 : ($acc_reset ? 16'sd0 : ($process_key ? ($key_complete ? 16'd0 : $new_acc_sat) : $acc));
+         
+         // best and best_idx update
+         $best_update = $key_complete && ($new_acc_sat > $best);
+         $best_next[15:0] = *reset ? -16'sd32768 : ($new_query ? -16'sd32768 : ($best_update ? $new_acc_sat : $best));
+         $best_idx_next[5:0] = *reset ? 6'd0 : ($new_query ? 6'd0 : ($best_update ? $key_idx[5:0] : $best_idx));
+         
+         // key_idx next
+         $key_idx_next[6:0] = *reset ? 7'd0 : ($new_query ? 7'd0 : ($key_complete ? ($key_idx + 1) : $key_idx));
+         
+         // read_phase next
+         $read_phase_next[1:0] = ($cmd == 2'b11) ? (($read_phase + 1) % 3) : 2'd0;
+         
+         // output calculation for READ
+         $read_out[7:0] = ($read_phase == 0) ? {2'b00, $best_idx} : ($read_phase == 1) ? $best[15:8] : $best[7:0];
+         
+         // hold out flop update (only on READ)
+         $hold_out_next[7:0] = ($cmd == 2'b11) ? $read_out : $hold_out;
+         
+         // Flop assignments
+         <<1$q0[7:0] = *reset ? 8'sd0 : ($load_q_write && ($q_write_idx == 0)) ? $signed($data) : $q0;
+         <<1$q1[7:0] = *reset ? 8'sd0 : ($load_q_write && ($q_write_idx == 1)) ? $signed($data) : $q1;
+         <<1$q2[7:0] = *reset ? 8'sd0 : ($load_q_write && ($q_write_idx == 2)) ? $signed($data) : $q2;
+         <<1$q3[7:0] = *reset ? 8'sd0 : ($load_q_write && ($q_write_idx == 3)) ? $signed($data) : $q3;
+         <<1$q4[7:0] = *reset ? 8'sd0 : ($load_q_write && ($q_write_idx == 4)) ? $signed($data) : $q4;
+         <<1$q5[7:0] = *reset ? 8'sd0 : ($load_q_write && ($q_write_idx == 5)) ? $signed($data) : $q5;
+         <<1$q6[7:0] = *reset ? 8'sd0 : ($load_q_write && ($q_write_idx == 6)) ? $signed($data) : $q6;
+         <<1$q7[7:0] = *reset ? 8'sd0 : ($load_q_write && ($q_write_idx == 7)) ? $signed($data) : $q7;
+         
+         <<1$qfill[3:0] = *reset ? 4'd0 : $

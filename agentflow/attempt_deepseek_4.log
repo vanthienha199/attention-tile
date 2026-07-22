@@ -1,0 +1,26 @@
+=== stage 1: compile TLV ===
+ok (build/scorer.v)
+=== stage 2+3: simulate and compare (both vector sets) ===
+IVERILOG FAILED:
+build/scorer.v:193: error: 'qfill' has already been declared in this scope.
+build/scorer.v:55:      : It was declared here as a variable.
+build/scorer.v:194: error: 'dim' has already been declared in this scope.
+build/scorer.v:56:      : It was declared here as a variable.
+build/scorer.v:195: error: 'acc' has already been declared in this scope.
+build/scorer.v:57:      : It was declared here as a variable.
+build/scorer.v:196: error: 'best' has already been declared in this scope.
+build/scorer.v:58:      : It was declared here as a variable.
+build/scorer.v:197: error: 'best_idx' has already been declared in this scope.
+build/scorer.v:59:      : It was declared here as a variable.
+build/scorer.v:198: error: 'key_idx' has already been declared in this scope.
+build/scorer.v:60:      : It was declared here as a variable.
+build/scorer.v:199: error: 'read_phase' has already been declared in this scope.
+build/scorer.v:61:      : It was declared here as a variable.
+build/scorer.v:200: error: 'out' has already been declared in this scope.
+build/scorer.v:62:      : It was declared here as a variable.
+build/scorer.v:201: error: 'q_mem' has already been declared in this scope.
+build/scorer.v:63:      : It was declared here as a variable.
+build/scorer.v:203: error: 'cmd' has already been declared in this scope.
+build/scorer.v:65:      : It was declared here as a net.
+build/scorer.v:204: error: 'data' has already been declared in this scope.
+build/scorer.v:66:      : It was declared here as a net.

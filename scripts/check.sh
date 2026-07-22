@@ -31,29 +31,28 @@ else
 fi
 echo "ok ($SRC)"
 
-echo "=== stage 2: simulate ==="
-python3 tb/gen_vectors.py tb/vectors.txt
-python3 tb/gen_tb_input.py tb/vectors.txt tb/vectors_encoded.txt
+echo "=== stage 2+3: simulate and compare (both vector sets) ==="
 iverilog -g2012 -o build/sim.vvp "$SRC" tb/tb.v > build/iverilog.log 2>&1
 if [ $? -ne 0 ]; then
   echo "IVERILOG FAILED:"
   cat build/iverilog.log
   exit 3
 fi
-timeout 120 vvp build/sim.vvp > build/vvp.log 2>&1
-grep -q "TB_DONE" build/vvp.log || { echo "SIM DID NOT FINISH:"; tail -20 build/vvp.log; exit 3; }
-echo "ok"
-
-echo "=== stage 3: compare vs golden ==="
-python3 model/golden.py tb/vectors.txt > build/gold_out.txt
-if ! diff -q build/gold_out.txt build/dut_out.txt > /dev/null; then
-  total=$(wc -l < build/gold_out.txt)
-  mism=$(paste build/gold_out.txt build/dut_out.txt | awk '$1 != $2' | wc -l)
-  echo "MISMATCH: $mism of $total cycles differ. First 10:"
-  paste build/gold_out.txt build/dut_out.txt | awk '$1 != $2 {print NR": gold="$1" dut="$2}' | head -10
-  exit 4
-fi
-echo "ok ($(wc -l < build/gold_out.txt | tr -d ' ') cycles match)"
+for GEN in gen_vectors gen_vectors_extra; do
+  python3 tb/$GEN.py tb/vectors.txt 2>/dev/null
+  python3 tb/gen_tb_input.py tb/vectors.txt tb/vectors_encoded.txt
+  timeout 120 vvp build/sim.vvp > build/vvp.log 2>&1
+  grep -q "TB_DONE" build/vvp.log || { echo "SIM DID NOT FINISH ($GEN):"; tail -20 build/vvp.log; exit 3; }
+  python3 model/golden.py tb/vectors.txt > build/gold_out.txt
+  if ! diff -q build/gold_out.txt build/dut_out.txt > /dev/null; then
+    total=$(wc -l < build/gold_out.txt)
+    mism=$(paste build/gold_out.txt build/dut_out.txt | awk '$1 != $2' | wc -l)
+    echo "MISMATCH in $GEN: $mism of $total cycles differ. First 10:"
+    paste build/gold_out.txt build/dut_out.txt | awk '$1 != $2 {print NR": gold="$1" dut="$2}' | head -10
+    exit 4
+  fi
+  echo "ok $GEN ($(wc -l < build/gold_out.txt | tr -d ' ') cycles match)"
+done
 
 echo "=== stage 4: synth sanity ==="
 yosys -q -p "read_verilog -sv $SRC; hierarchy -top tt_um_hale_attn_scorer; proc; opt; stat" \

@@ -1,0 +1,27 @@
+=== stage 1: compile TLV ===
+SANDPIPER FAILED:
+INFORM(0) (PROD_INFO):
+	SandPiper(TM) 1.14-2022/10/10-beta-Pro from Redwood EDA, LLC
+	(DEV) Run as: "java -jar sandpiper.jar --inlineGen --noline --iArgs --outdir=out --nopath -i ./scorer.m5out.tlv -o scorer.v
+	For help, including product info, run with -h.
+
+INFORM(0) (LICENSE):
+	Licensed to "Redwood EDA, LLC" as: Full Edition.
+
+INFORM(0) (FILES):
+	Reading "./scorer.m5out.tlv"
+	to produce:
+		Translated HDL File: "out/scorer.v"
+
+FATAL_ERROR(10) (INDENT): File 'scorer.tlv' Line 244 (char 10)
+	Preprocessed as './scorer.m5out.tlv':243(ch10):
+	+---------v-------------------------------
+	>         $qsel[7:0] = ($dim == 0) ? $q0 :
+	+---------^-------------------------------
+	Indentation is too deep (9 > 3).
+
+DEBUG(0) (BREAKPOINT):
+	Utility.breakpoint() called.
+
+[0;31mSandPiper returning status 10.[0m
+You have agreed to our Terms of Service here: https://makerchip.com/terms.

@@ -1,0 +1,7 @@
+=== stage 1: compile TLV ===
+ok (build/scorer.v)
+=== stage 2+3: simulate and compare (both vector sets) ===
+ok gen_vectors (3410 cycles match)
+ok gen_vectors_extra (4558 cycles match)
+=== stage 4: synth sanity ===
+ALL CHECKS PASSED

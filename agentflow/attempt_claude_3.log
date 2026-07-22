@@ -1,0 +1,4 @@
+=== stage 1: compile TLV ===
+ok (build/scorer.v)
+=== stage 2+3: simulate and compare (both vector sets) ===
+SIM DID NOT FINISH (gen_vectors):

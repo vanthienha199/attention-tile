@@ -42,3 +42,21 @@ the buggy v1: about 63 cents. The v1 bug file is kept at
 The Tiny Tapeout submission lives in a separate repo built from the TT template, with
 the same conformance vectors run in cocotb at RTL and gate level, through the sky130
 GDS flow. The chip goes out on the TTSKY26c shuttle.
+
+## Where this sits in the literature
+
+Recent benchmarks for LLM-generated RTL (NotSoTiny, arXiv:2512.20823; FormalRTL,
+arXiv:2603.08738; the ASPDAC'26 LLM-DV survey) converge on the same verification
+shape used here: candidates judged against an independent golden reference by
+deterministic tooling, with formal equivalence as the gold standard. The formal
+attempt for this design is documented honestly in `formal/README.md`. The same
+benchmarks also report that LLM-written RTL usually trails hand-written RTL on area
+and delay, which is an open experiment here: the tile sits at ~86% utilization, and
+shrinking it with the same pipeline and the same byte-exact gate as the correctness
+constraint is the natural next run.
+
+On the architecture side, the datapath is the score-and-select half of attention;
+the softmax half has become practical for tiles this small through integer
+power-of-two schemes (Softermax; E2Softmax; IntAttention, arXiv:2511.21513), which
+replace e^x with shift/add logic. That is the intended growth path for a future
+shuttle slot.

@@ -15,6 +15,7 @@
          $cmd[1:0]  = *uio_in[1:0];
          $data[7:0] = *ui_in;
 
+         // Selected query element based on current dim
          $qsel[7:0] =
             ($dim[2:0] == 3'h0) ? $q0 :
             ($dim[2:0] == 3'h1) ? $q1 :
@@ -25,6 +26,7 @@
             ($dim[2:0] == 3'h6) ? $q6 :
                                   $q7;
 
+         // Multiply (int8 x int8 -> int16) and saturating add
          $prod[15:0] = \$signed($qsel[7:0]) * \$signed($data[7:0]);
          $sum_full[16:0] = {$acc[15], $acc[15:0]} + {$prod[15], $prod[15:0]};
          $sat_sum[15:0] =
@@ -32,59 +34,72 @@
             ($sum_full[16:15] == 2'b10) ? 16'h8000 :
             $sum_full[15:0];
 
+         // Conditions
          $is_load_q   = ($cmd == 2'h1);
          $is_stream_k = ($cmd == 2'h2);
-         $q_complete  = $qfill[3];
-         $key_in_range = ~$key_idx[6];
+         $is_idle     = ($cmd == 2'h0);
+         $q_complete  = ($qfill[3:0] == 4'h8);
+         $key_in_range = ~$key_idx[6];   // cheaper: bit6 tells if index >= 64
          $do_accumulate = $is_stream_k && $key_in_range;
-         $dim_complete  = &$dim[2:0];
+         $dim_complete  = &$dim[2:0];    // cheap: all bits high for 7
          $key_done      = $do_accumulate && $dim_complete;
          $new_is_better = \$signed($sat_sum) > \$signed($best[15:0]);
 
-         $wr_idx[2:0] = $q_complete ? 3'h0 : $qfill[2:0];
+         // Write index for LOAD_Q
+         $wr_idx[2:0] = ($qfill == 4'h8) ? 3'h0 : $qfill[2:0];
+
+         // Write enable decoder – one shared decoder replaces eight 3‑bit comparators
          $write_en[7:0] = $is_load_q ? (8'h1 << $wr_idx) : 8'h0;
 
-         $completing_q = $is_load_q && ($qfill[3:0] == 4'h7);
+         // Is this the 8th LOAD_Q byte completing the query?
+         $completing_q = $is_load_q && ($qfill[2:0] == 3'h7) && ~$qfill[3];
 
+         // Next qfill
          $qfill_nxt[3:0] =
             $is_load_q ?
-               ($q_complete ? 4'h1 : ($qfill + 4'h1)) :
-            (~$cmd[1] || $is_stream_k) ?
-               ($q_complete ? $qfill : 4'h0) :
+               (($qfill == 4'h8) ? 4'h1 : ($qfill + 4'h1)) :
+            ($is_stream_k || $is_idle) ?
+               (($qfill < 4'h8) ? 4'h0 : $qfill) :
             $qfill;
 
-         $reset_dim_or_keydone = ~$cmd[1] || $key_done;
+         // Next dim and acc – merged reset conditions reduce muxing
+         $reset_dim_or_keydone = $is_load_q || $is_idle || $key_done;
          $dim_nxt[2:0] = $reset_dim_or_keydone ? 3'h0 : ($do_accumulate ? ($dim + 3'h1) : $dim);
          $acc_nxt[15:0] = $reset_dim_or_keydone ? 16'h0000 : ($do_accumulate ? $sat_sum : $acc);
 
+         // Next best
          $best_nxt[15:0] =
             $completing_q ? 16'h8000 :
             ($key_done && $new_is_better) ? $sat_sum :
             $best;
 
+         // Next best_idx
          $best_idx_nxt[5:0] =
             $completing_q ? 6'h00 :
             ($key_done && $new_is_better) ? $key_idx[5:0] :
             $best_idx;
 
+         // Next key_idx
          $key_idx_nxt[6:0] =
             $completing_q ? 7'h00 :
             $key_done ? ($key_idx + 7'h01) :
             $key_idx;
 
-         $is_read = ($cmd == 2'h3);
+         // Next read_phase
          $read_phase_nxt[1:0] =
-            $is_read ?
+            ($cmd == 2'h3) ?
                ($read_phase == 2'h2 ? 2'h0 : $read_phase + 2'h1) :
             2'h0;
 
+         // Next out
          $out_nxt[7:0] =
-            $is_read ?
+            ($cmd == 2'h3) ?
                (($read_phase == 2'h0) ? {2'b00, $best_idx[5:0]} :
                 ($read_phase == 2'h1) ? $best[15:8] :
                                         $best[7:0]) :
             $out;
 
+         // Flopped state – shared write enable for query registers
          <<1$q0[7:0]         = *reset ? 8'h00 : ($write_en[0] ? $data : $q0);
          <<1$q1[7:0]         = *reset ? 8'h00 : ($write_en[1] ? $data : $q1);
          <<1$q2[7:0]         = *reset ? 8'h00 : ($write_en[2] ? $data : $q2);

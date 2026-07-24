@@ -34,7 +34,7 @@
 
          $is_load_q   = ($cmd == 2'h1);
          $is_stream_k = ($cmd == 2'h2);
-         $q_complete  = $qfill[3];
+         $q_complete  = ($qfill[3:0] == 4'h8);
          $key_in_range = ~$key_idx[6];
          $do_accumulate = $is_stream_k && $key_in_range;
          $dim_complete  = &$dim[2:0];
@@ -44,16 +44,16 @@
          $wr_idx[2:0] = $q_complete ? 3'h0 : $qfill[2:0];
          $write_en[7:0] = $is_load_q ? (8'h1 << $wr_idx) : 8'h0;
 
-         $completing_q = $is_load_q && ($qfill[3:0] == 4'h7);
+         $completing_q = $is_load_q && ($qfill[2:0] == 3'h7) && ~$qfill[3];
 
          $qfill_nxt[3:0] =
             $is_load_q ?
                ($q_complete ? 4'h1 : ($qfill + 4'h1)) :
-            (~$cmd[1] || $is_stream_k) ?
-               ($q_complete ? $qfill : 4'h0) :
+            ($is_stream_k || ($cmd == 2'h0)) ?
+               (($qfill < 4'h8) ? 4'h0 : $qfill) :
             $qfill;
 
-         $reset_dim_or_keydone = ~$cmd[1] || $key_done;
+         $reset_dim_or_keydone = $is_load_q || ($cmd == 2'h0) || $key_done;
          $dim_nxt[2:0] = $reset_dim_or_keydone ? 3'h0 : ($do_accumulate ? ($dim + 3'h1) : $dim);
          $acc_nxt[15:0] = $reset_dim_or_keydone ? 16'h0000 : ($do_accumulate ? $sat_sum : $acc);
 
@@ -72,14 +72,13 @@
             $key_done ? ($key_idx + 7'h01) :
             $key_idx;
 
-         $is_read = ($cmd == 2'h3);
          $read_phase_nxt[1:0] =
-            $is_read ?
+            ($cmd == 2'h3) ?
                ($read_phase == 2'h2 ? 2'h0 : $read_phase + 2'h1) :
             2'h0;
 
          $out_nxt[7:0] =
-            $is_read ?
+            ($cmd == 2'h3) ?
                (($read_phase == 2'h0) ? {2'b00, $best_idx[5:0]} :
                 ($read_phase == 2'h1) ? $best[15:8] :
                                         $best[7:0]) :

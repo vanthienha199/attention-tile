@@ -2,3 +2,5 @@ build/
 tb/vectors.txt
 tb/vectors_encoded.txt
 __pycache__/
+formal/cross/
+formal/out/

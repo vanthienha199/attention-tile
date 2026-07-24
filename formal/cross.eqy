@@ -8,6 +8,8 @@ prep -top tt_um_hale_attn_scorer -flatten
 
 [script]
 proc -ifx
+memory_collect
+memory_map
 clean
 setundef -anyseq
 
@@ -20,4 +22,4 @@ setundef -anyseq
 [strategy sby_seq]
 use sby
 depth 24
-engine smtbmc
+engine smtbmc bitwuzla

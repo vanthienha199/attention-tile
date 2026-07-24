@@ -55,17 +55,18 @@ for GEN in gen_vectors gen_vectors_extra; do
 done
 
 echo "=== stage 4: synth sanity ==="
-yosys -q -p "read_verilog -sv $SRC; hierarchy -top tt_um_hale_attn_scorer; proc; opt; stat" \
-  > build/yosys.log 2>&1
+yosys -q -l build/yosys.log -p "read_verilog -sv $SRC; hierarchy -top tt_um_hale_attn_scorer; proc; opt; stat" \
+  > /dev/null 2>&1
 if [ $? -ne 0 ]; then
   echo "YOSYS FAILED:"
   tail -20 build/yosys.log
   exit 5
 fi
-if grep -qi "latch" build/yosys.log; then
+if grep -qE 'Latch inferred|\$(a?dlatch|dlatchsr)' build/yosys.log; then
   echo "LATCHES INFERRED:"
-  grep -i latch build/yosys.log
+  grep -E 'Latch inferred|\$(a?dlatch|dlatchsr)' build/yosys.log
   exit 5
 fi
-grep -E "Number of cells" build/yosys.log
+cells=$(awk '/^===/{s=1; next} s && /^[[:space:]]+[0-9]+[[:space:]]/{sum += $1} END{print sum+0}' build/yosys.log)
+echo "Number of cells: $cells"
 echo "ALL CHECKS PASSED"

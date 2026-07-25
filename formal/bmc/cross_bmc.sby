@@ -1,0 +1,16 @@
+[options]
+mode bmc
+depth 18
+
+[engines]
+smtbmc bitwuzla
+
+[script]
+read -formal bmc_top.sv
+read -sv gold.v gate.v
+prep -top bmc_top
+
+[files]
+bmc_top.sv
+gold.v
+gate.v

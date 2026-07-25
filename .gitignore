@@ -4,3 +4,6 @@ tb/vectors_encoded.txt
 __pycache__/
 formal/cross/
 formal/out/
+formal/bmc/cross_bmc/
+formal/bmc/gold.v
+formal/bmc/gate.v

@@ -1,17 +1,37 @@
-# Formal cross-check attempt
+# Formal cross-checks
 
-`cross.eqy` tries to formally prove the agent-written design (`build/scorer.v`)
-equivalent to the independently hand-written reference (`model/ref_scorer.v`)
-using EQY with sequential induction at depth 24.
+Two independent implementations of the same spec exist in this repo: the
+agent-written design (`build/scorer.v`, generated from `hw/scorer.tlv`) and the
+hand-written reference (`model/ref_scorer.v`). Two formal attempts were made to
+relate them.
 
-Result, honestly: the 16 trivial pin partitions (`uio_oe.*`, `uio_out.*`) prove
-in about a second each. The real data-path partitions (`uo_out.*`) did not
-converge, first with the default smtbmc solver in 15 minutes, then with
-bitwuzla given two hours. The 64-entry score memory plus the argmax comparison
-tree is simply a hard induction problem at this depth.
+## Bounded equivalence: PROVED (depth 18)
 
-So no formal equivalence is claimed anywhere in this project. The verification
-story rests on the 7968-cycle byte-exact simulation against the executable
-spec across two independently seeded vector sets, plus the gate-level netlist
-test in the Tiny Tapeout flow. The config is kept here in case someone wants
-to take another swing at it with a better strategy.
+`bmc/` holds a miter (`bmc_top.sv`): both implementations receive identical
+free inputs, reset is held for the first two cycles, and all three outputs are
+asserted equal on every cycle after. `sby` in BMC mode with bitwuzla proves
+this exhaustively to depth 18 on the shipped 994-cell design:
+
+    SBY [cross_bmc] DONE (PASS, rc=0)
+
+Precisely: there is no input sequence of any kind, any commands, any data, any
+interleaving, that makes the two implementations diverge on any output within
+the first 15 cycles after reset release. That window covers a full query load
+plus arbitrary command interleavings, exhaustively, which no finite testbench
+can claim. It does not cover longer transactions such as a full 64-key stream;
+beyond this depth the solver cost grows steeply (the pre-shrink 1054-cell
+design could not clear depth 18 in over four hours, the smaller design proved
+it in about 35 minutes).
+
+## Unbounded equivalence: NOT proved
+
+`cross.eqy` attempts full sequential equivalence with EQY at induction depth
+24. The 16 trivial pin partitions prove in about a second each; the data-path
+partitions (`uo_out.*`) did not converge with smtbmc in 15 minutes or bitwuzla
+in two hours. The 64-entry score memory plus the argmax comparison tree is a
+hard induction problem, and no unbounded claim is made anywhere in this
+project.
+
+The end-to-end verification story therefore rests on: the bounded proof above,
+the 7968-cycle byte-exact simulation across two independently seeded vector
+sets, and the gate-level netlist test in the Tiny Tapeout flow.
